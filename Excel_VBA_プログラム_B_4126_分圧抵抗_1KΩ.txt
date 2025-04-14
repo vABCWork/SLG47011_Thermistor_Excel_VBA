@@ -1,0 +1,110 @@
+Option Explicit
+
+Private Sub CommandButton1_Click()
+
+  Dim i
+  Dim reg_1
+  
+  Dim v_ad
+  Dim cal_temp
+  Dim temp_val
+  
+  Dim hex_str
+  
+  Worksheets("table").Activate
+  
+  '測定回路: 分圧抵抗はVref側、サーミスタはGND側　（サーミスア下側)
+  '
+  ' カラム A : AD値 = 0～4095 (12bit A/Dコンバータ)
+  ' カラム B : ADコンバータへの入力電圧 Vad = (AD値/4095) * 1.62[V}
+  ' カラム C : 測定電圧からB定数を使用した式で計算した温度 [℃]
+  ' カラム D : メモリテーブルへ入れるデータ
+  '
+      
+   reg_1 = 1000  '分圧抵抗 1000[Ω]
+   
+   
+   For i = 0 To 4095
+      Cells(i + 2, "A") = ""  'カラム Aクリア
+      Cells(i + 2, "B") = ""  'カラム Bクリア
+      Cells(i + 2, "C") = ""  'カラム Cクリア
+      Cells(i + 2, "D") = ""  'カラム Dクリア
+   Next
+   
+  
+   For i = 0 To 4095
+   
+     Cells(i + 2, "A") = i      'AD値(1～4095)をカラム Aに表示
+     
+     v_ad = (i / 4095) * 1.62    '入力電圧　 (印加電圧 = 1.62[V})
+     
+     Cells(i + 2, "B") = v_ad    '入力電圧をカラム Bに表示
+          
+     If i > 0 And i < 4095 Then
+       cal_temp = calculate_temp(v_ad, reg_1) '温度計算(B定数）
+       Cells(i + 2, "C") = cal_temp          '計算した温度
+     End If
+     
+     If cal_temp >= 0 And cal_temp <= 250 Then ' 0℃～250℃の場合
+     
+          temp_val = Round(cal_temp)
+          
+     ElseIf cal_temp < 0 Then
+          temp_val = 0
+     ElseIf cal_temp > 250 Then
+          temp_val = 4095
+     End If
+       
+     hex_str = "0000" + Hex(temp_val)
+       
+     Cells(i + 2, "D") = "0x" + Right(hex_str, 4) ' 温度
+     
+   Next
+     
+   
+   
+End Sub
+ 
+ 
+' 測定電圧より､温度を計算 (B定数使用)
+' 入力: vin :測定電圧[V]
+'       reg_val :分圧抵抗
+' 出力: 温度[℃]
+'
+Function calculate_temp(ByVal vin As Single, ByVal reg_val As Single) As Single
+
+  Dim a
+  Dim b
+    
+  Dim b_const
+  Dim t_0
+  Dim reg_0
+  
+  Dim cal_temp_k
+  Dim cal_temp_c
+  
+
+   b_const = 4126   'B定数
+ 
+   t_0 = 25 + 273.15  '基準温度(25℃)の絶対温度
+   
+   reg_0 = 10000      '基準温度でのサーミスタの抵抗値 10[KΩ]
+
+   ' a = (((1.62 / vin) - 1) * reg_val) / reg_0    'サーミスタ上側の場合
+    
+    a = ((vin / (1.62 - vin)) * reg_val) / reg_0   'サーミスタ　GND側の場合
+    
+     
+    b = (1 / b_const) * Log(a) + (1 / t_0)
+     
+    cal_temp_k = 1 / b     'B定数を使用した式で計算した温度[K]
+     
+    cal_temp_c = cal_temp_k - 273.15  '[℃]に換算
+     
+    calculate_temp = cal_temp_c  '戻り値
+
+End Function
+
+Private Sub UserForm_Click()
+
+End Sub
